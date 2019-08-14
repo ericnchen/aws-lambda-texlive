@@ -1,0 +1,68 @@
+version: 2.1
+executors:
+  docker-builder:
+    environment:
+      IMAGE_NAME: aws-lambda-texlive
+    docker:
+      - image: circleci/buildpack-deps:stretch
+jobs:
+  build:
+    executor: docker-builder
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: curl -LO http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
+      - run: docker build -t ${IMAGE_NAME}:latest .
+      - run: docker save -o image.tar ${IMAGE_NAME}
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./image.tar
+  publish-to-dockerhub:
+    executor: docker-builder
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - setup_remote_docker
+      - run: docker load -i /tmp/workspace/image.tar
+      - run: |
+          echo ${DOCKERHUB_PASSWORD} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
+          docker tag ${IMAGE_NAME}:latest ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest
+          docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest
+  publish-to-awslambda:
+    docker:
+      - image: ericnchen/aws-lambda-texlive:latest
+    steps:
+      - checkout
+      - run: npm install -g serverless
+      - run: cd /opt && zip -qry -9 /tmp/texlive-layer.zip .
+      - run: cp /tmp/texlive-layer.zip .
+      - run: serverless deploy
+workflows:
+  version: 2
+  build-dev:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only: dev
+  build-and-publish:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only: master
+      - publish-to-dockerhub:
+          context: dockerhub/ericnchen
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+      - publish-to-awslambda:
+          requires:
+            - build
+            - publish-to-dockerhub
+          filters:
+            branches:
+              only: master
