@@ -60,6 +60,7 @@ workflows:
             branches:
               only: master
       - publish-to-awslambda:
+          context: aws/ericnchen
           requires:
             - build
             - publish-to-dockerhub
