@@ -1,2 +1,5 @@
 # Ignore everything in this directory except for whitelisted (!) items.
 *
+!PACKAGES
+!texlive.profile
+!install-tl-unx.tar.gz

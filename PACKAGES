@@ -1,0 +1,5 @@
+# By default the only additional package that is installed is latexmk.
+# Additional TeXLive packages can be specified here, one on each line.
+# Comments begin with # and cannot be placed inline.
+
+beamer
